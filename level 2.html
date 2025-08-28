@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Strict Logo Quiz - Level 2</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+.hidden { display: none !important; }
+body { font-family: Arial, Helvetica, sans-serif; background:#f9f9f9; margin:20px; -webkit-user-select:none; user-select:none; }
+.quiz-container { max-width:900px; margin:0 auto; background:#fff; padding:18px; border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.08); }
+h2,h3 { margin:6px 0 12px; }
+input, button { width:100%; padding:10px; margin:8px 0; box-sizing:border-box; }
+button { background:#0b71f3; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+button.secondary { background:#6b7280; }
+.logo-container { width:260px; height:260px; margin:12px auto; background-repeat:no-repeat; background-position:center; background-size:contain; border:1px solid #eee; pointer-events:none; }
+#timer { text-align:center; color:#c00000; font-weight:600; margin-bottom:10px; display:block; }
+.table-container { max-height:420px; overflow:auto; border:1px solid #e5e7eb; margin-top:12px; }
+table { width:100%; border-collapse:collapse; }
+th,td { padding:8px; border:1px solid #e5e7eb; text-align:left; vertical-align:top; }
+th { background:#f3f4f6; }
+.answer-details-overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:9999; }
+.answer-details-content { width:min(1100px,96%); max-height:92%; overflow:auto; background:#fff; padding:18px; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,0.25); position:relative; }
+.close-button { position:absolute; top:10px; right:12px; font-size:20px; cursor:pointer; border:none; background:none; }
+small.muted { color:#6b7280; display:block; margin-top:8px; }
+</style>
+</head>
+<body oncopy="return false" oncut="return false" onpaste="return false" oncontextmenu="return false" ondragstart="return false" ondrop="return false">
+<div class="quiz-container">
+
+  <!-- RULES -->
+  <div id="rules-screen">
+    <h2>Welcome — Strict Logo Quiz (Level 2)</h2>
+    <p>Please read rules carefully:</p>
+    <ul>
+      <li><strong>Duration:</strong> 30 minutes once you start.</li>
+      <li><strong>One attempt only:</strong> Tracked by Roll or Phone.</li>
+      <li><strong>Random order:</strong> Questions shuffled per participant.</li>
+      <li><strong>One question at a time.</strong></li>
+      <li><strong>Anti-cheat:</strong> Copy/paste/right-click/devtools/printscreen disabled. Switching tabs or closing tab triggers auto-submit.</li>
+      <li><strong>Scoring:</strong> Levenshtein similarity used; threshold in config.</li>
+      <li><strong>Results:</strong> Admin only (password protected).</li>
+    </ul>
+    <div style="display:flex;gap:10px;">
+      <button onclick="showLogin()">I Agree & Start</button>
+      <button class="secondary" onclick="showAdminLogin()">Admin Login</button>
+    </div>
+    <small class="muted">Put all PNG files in the same folder as this HTML. Filenames must match those in CONFIG.</small>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="login-screen" class="hidden">
+    <h3>Login to Start Level 2</h3>
+    <input id="roll" placeholder="Roll Number">
+    <input id="section" placeholder="Section">
+    <input id="name" placeholder="Full Name">
+    <input id="phone" placeholder="Phone Number">
+    <div style="display:flex;gap:10px;">
+      <button onclick="startQuiz()">Start Quiz</button>
+      <button class="secondary" onclick="showScreen('rules-screen')">Back</button>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="quiz-screen" class="hidden">
+    <h3>Level 2 Logo Quiz</h3>
+    <span id="timer"></span>
+    <div id="question"></div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button id="next-button" onclick="nextQuestion()">Next</button>
+      <button id="submit-button" onclick="submitQuiz()" class="hidden">Submit</button>
+    </div>
+  </div>
+
+  <!-- SUBMITTED -->
+  <div id="submitted-screen" class="hidden">
+    <h3>Quiz Submitted</h3>
+    <p>Your answers were recorded. Contact admin for results.</p>
+    <button onclick="showScreen('rules-screen')">Return</button>
+  </div>
+
+  <!-- ADMIN LOGIN -->
+  <div id="admin-login" class="hidden">
+    <h3>Admin Login</h3>
+    <input id="admin-pass" type="password" placeholder="Password">
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button onclick="checkAdmin()">Login</button>
+      <button class="secondary" onclick="showScreen('rules-screen')">Back</button>
+    </div>
+  </div>
+
+  <!-- ADMIN RESULTS -->
+  <div id="result-screen" class="hidden">
+    <h3>Admin: Level 2 Results</h3>
+    <div class="table-container">
+      <table id="result-table">
+        <thead><tr><th>Roll</th><th>Name</th><th>Section</th><th>Phone</th><th>Score</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="clearAllResults()">Clear All</button>
+      <button class="secondary" onclick="showScreen('rules-screen')">Back</button>
+    </div>
+  </div>
+
+  <!-- ANSWER DETAILS -->
+  <div id="answer-details-overlay" class="answer-details-overlay hidden" aria-hidden="true">
+    <div class="answer-details-content" role="dialog" aria-modal="true">
+      <button class="close-button" onclick="hideAnswerDetails()">✕</button>
+      <h3 id="answer-details-title">Answers</h3>
+      <div class="table-container">
+        <table id="answer-details-table">
+          <thead><tr><th>Q</th><th>Logo</th><th>Correct</th><th>Given</th><th>Status</th><th>Similarity</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// CONFIG
+const CONFIG = {
+  QUESTIONS: [
+    { img: "tesla.png", answer: "Tesla" },
+    { img: "nike.png", answer: "Nike" },
+    { img: "discord.png", answer: "Discord" },
+    { img: "transgender.png", answer: "Transgender" },
+    { img: "bigbasket.png", answer: "BigBasket" },
+    { img: "uturn.png", answer: "Uturn" },
+    { img: "deepseek.png", answer: "DeepSeek" },
+    { img: "github.png", answer: "GitHub" },
+    { img: "notebook llm.png", answer: "Notebook LLM" },
+    { img: "bajaj.png", answer: "Bajaj" },
+    { img: "china.png", answer: "China" },
+    { img: "recycle.png", answer: "Recycle" },
+    { img: "lic.png", answer: "LIC" },
+    { img: "ammul.png", answer: "Amul" },
+    { img: "oneplus.png", answer: "OnePlus" },
+    { img: "kali linux.png", answer: "Kali Linux" },
+    { img: "hackerrank.png", answer: "HackerRank" },
+    { img: "windows.png", answer: "Windows" },
+    { img: "canva.png", answer: "Canva" },
+    { img: "capcut.png", answer: "CapCut" }
+  ],
+  ADMIN_PASS: "Vivek1234@",
+  SCORE_SIMILARITY_THRESHOLD: 95,
+  QUIZ_DURATION_MINUTES: 30,
+  LOCAL_STORAGE_KEY: "quizResultsLevel2_v1"
+};
+
+let participant = {}, shuffledIndices = [], currentPos = 0, collected = [], submitted = false, timerInterval = null;
+let results = JSON.parse(localStorage.getItem(CONFIG.LOCAL_STORAGE_KEY) || "[]");
+
+function showScreen(id){
+  document.querySelectorAll('.quiz-container > div, #answer-details-overlay').forEach(el => el.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function encodeFileUrl(filename){
+  return encodeURIComponent(filename).replace(/%2F/g, '/');
+}
+
+function levenshtein(a,b){
+  a=String(a||'');b=String(b||''); const m=a.length,n=b.length;if(m===0)return n;if(n===0)return m;
+  const dp=Array.from({length:m+1},()=>Array(n+1).fill(0));
+  for(let i=0;i<=m;i++)dp[i][0]=i;
+  for(let j=0;j<=n;j++)dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      const cost=a[i-1]===b[j-1]?0:1;
+      dp[i][j]=Math.min(dp[i-1][j]+1,dp[i][j-1]+1,dp[i-1][j-1]+cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function normalizeAnswer(s){ return (s||'').toLowerCase().replace(/\s+/g,'').trim(); }
+function shuffleArray(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+function showLogin(){ showScreen('login-screen'); }
+function showAdminLogin(){ document.getElementById('admin-pass').value=''; showScreen('admin-login'); }
+
+function startQuiz(){
+  participant = {
+    roll: document.getElementById('roll').value.trim(),
+    section: document.getElementById('section').value.trim(),
+    name: document.getElementById('name').value.trim(),
+    phone: document.getElementById('phone').value.trim()
+  };
+  if(!participant.roll || !participant.section || !participant.name || !participant.phone){
+    alert('Please fill all fields.'); return;
+  }
+  if(results.some(r => r.roll===participant.roll||r.phone===participant.phone)){
+    alert('This Roll/Phone has already attempted Level 2.'); return;
+  }
+  collected=[]; submitted=false; currentPos=0;
+  shuffledIndices=shuffleArray([...Array(CONFIG.QUESTIONS.length).keys()]);
+  showScreen('quiz-screen');
+  document.getElementById('submit-button').classList.add('hidden');
+  document.getElementById('next-button').classList.remove('hidden');
+  startTimer(); loadQuestion();
+}
+
+function startTimer(){
+  const existing=sessionStorage.getItem('quizStartTimeLevel2');
+  let start=existing?parseInt(existing,10):Date.now();
+  if(!existing) sessionStorage.setItem('quizStartTimeLevel2',String(start));
+  const end=start+CONFIG.QUIZ_DURATION_MINUTES*60*1000;
+  const timerEl=document.getElementById('timer');
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    const left=end-Date.now();
+    if(left<=0){ clearInterval(timerInterval); timerEl.textContent="Time's up!"; alert("Time's up. Submitting quiz."); submitQuiz(true); return; }
+    const mins=Math.floor(left/60000), secs=Math.floor((left%60000)/1000);
+    timerEl.textContent=`Time Left: ${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  },1000);
+}
+
+function loadQuestion(){
+  if(currentPos>=shuffledIndices.length){
+    document.getElementById('next-button').classList.add('hidden');
+    document.getElementById('submit-button').classList.remove('hidden');
+    document.getElementById('question').innerHTML="<p>End of questions. Click Submit to finish.</p>";
+    return;
+  }
+  const qIndex=shuffledIndices[currentPos], q=CONFIG.QUESTIONS[qIndex], fileUrl=encodeFileUrl(q.img);
+  document.getElementById('question').innerHTML=`
+    <p>Q ${currentPos+1} of ${shuffledIndices.length}: Identify this logo</p>
+    <div class="logo-container" style="background-image:url('${fileUrl}');"></div>
+    <input id="ans" placeholder="Type your answer then press Next (or Enter)">
+  `;
+  const el=document.getElementById('ans'); if(el) el.focus();
+}
+
+function nextQuestion(){
+  const val=(document.getElementById('ans')&&document.getElementById('ans').value)?document.getElementById('ans').value.trim():"";
+  collected.push({ qIndex: shuffledIndices[currentPos], userAnswer: val });
+  currentPos++;
+  if(currentPos<shuffledIndices.length) loadQuestion(); else submitQuiz(false);
+}
+
+function submitQuiz(isAuto=false){
+  if(submitted) return; submitted=true;
+  clearInterval(timerInterval); sessionStorage.removeItem('quizStartTimeLevel2');
+  if(currentPos<shuffledIndices.length){ // Ensure last question's answer is collected if quiz ends prematurely
+    const val=(document.getElementById('ans')&&document.getElementById('ans').value)?document.getElementById('ans').value.trim():"";
+    collected.push({ qIndex: shuffledIndices[currentPos], userAnswer: val });
+  }
+  // Create a map to store answers by original question index to handle potential duplicate question indices from user interaction issues
+  const map=new Map(); 
+  collected.forEach(c=>{
+      if(!map.has(c.qIndex) || c.userAnswer) { // Prefer the non-empty answer if multiple exist for the same question
+          map.set(c.qIndex,c.userAnswer||"");
+      }
+  });
+
+  let score=0; const detailedAnswers=[];
+  for(let i=0;i<CONFIG.QUESTIONS.length;i++){
+    const q=CONFIG.QUESTIONS[i];
+    const given=map.has(i)?map.get(i):"";
+    const g=normalizeAnswer(given);
+    const cNorm=normalizeAnswer(q.answer);
+    
+    // Calculate Levenshtein distance and similarity
+    const dist=levenshtein(g,cNorm);
+    const maxLen=Math.max(1,cNorm.length); // Avoid division by zero
+    const sim=Math.max(0,Math.round((1-(dist/maxLen))*100)); // Similarity percentage
+    const isCorrect=sim>=CONFIG.SCORE_SIMILARITY_THRESHOLD;
+    
+    if(isCorrect) score++;
+    detailedAnswers.push({ qNo:i+1, logo:q.img, correctAnswer:q.answer, participantAnswer:given, status:isCorrect?"Correct":"Incorrect", similarity:sim });
+  }
+  const rec={ roll:participant.roll,name:participant.name,section:participant.section,phone:participant.phone,score,totalQuestions:CONFIG.QUESTIONS.length,timestamp:Date.now(),detailedAnswers,isAutoSubmit:!!isAuto };
+  results.push(rec); localStorage.setItem(CONFIG.LOCAL_STORAGE_KEY,JSON.stringify(results));
+  showScreen('submitted-screen');
+}
+
+function checkAdmin(){
+  const pass=document.getElementById('admin-pass').value;
+  if(pass===CONFIG.ADMIN_PASS){ showScreen('result-screen'); renderResults(); } else alert('Wrong password');
+}
+
+function renderResults(){
+  const tbody=document.querySelector('#result-table tbody'); tbody.innerHTML='';
+  if(!results||results.length===0){ const tr=tbody.insertRow(); const td=tr.insertCell(); td.colSpan=6; td.textContent='No results yet.'; td.style.textAlign='center'; return; }
+  const sorted=[...results].sort((a,b)=>(b.score-a.score)||((a.timestamp||0)-(b.timestamp||0)));
+  sorted.forEach(r=>{
+    const tr=tbody.insertRow();
+    tr.insertCell().innerText=r.roll;
+    tr.insertCell().innerText=r.name;
+    tr.insertCell().innerText=r.section;
+    tr.insertCell().innerText=r.phone;
+    tr.insertCell().innerText=`${r.score} / ${r.totalQuestions}`;
+    const cell=tr.insertCell();
+    const btn=document.createElement('button'); btn.innerText='View Answers';
+    btn.onclick=()=>showAnswerDetails(r); cell.appendChild(btn);
+  });
+}
+
+function showAnswerDetails(resultObj){
+  if(!resultObj||!resultObj.detailedAnswers){ alert('No details'); return; }
+  document.getElementById('answer-details-title').innerText=`Answers for ${resultObj.name} (${resultObj.roll})`;
+  const tbody=document.querySelector('#answer-details-table tbody'); tbody.innerHTML='';
+  resultObj.detailedAnswers.forEach(a=>{
+    const tr=tbody.insertRow();
+    tr.insertCell().innerText=a.qNo;
+    const logoCell=tr.insertCell(); const img=document.createElement('img'); img.src=encodeFileUrl(a.logo); img.alt=`Q${a.qNo}`; img.style.width='64px'; img.style.height='64px'; img.style.objectFit='contain'; img.style.border='1px solid #eee'; logoCell.appendChild(img);
+    tr.insertCell().innerText=a.correctAnswer||''; tr.insertCell().innerText=a.participantAnswer||'(no answer)';
+    const statusCell=tr.insertCell(); statusCell.innerText=a.status; statusCell.style.color=a.status==='Correct'?'green':'red';
+    tr.insertCell().innerText=a.similarity+'%';
+  });
+  document.getElementById('answer-details-overlay').classList.remove('hidden');
+  document.getElementById('answer-details-overlay').setAttribute('aria-hidden','false');
+}
+
+function hideAnswerDetails(){ document.getElementById('answer-details-overlay').classList.add('hidden'); document.getElementById('answer-details-overlay').setAttribute('aria-hidden','true'); }
+
+function clearAllResults(){
+  if(confirm("Are you sure you want to clear all results? This action cannot be undone.")){
+    results = [];
+    localStorage.removeItem(CONFIG.LOCAL_STORAGE_KEY);
+    renderResults();
+  }
+}
+
+// Anti-cheat: warn/submit if user tries to leave tab
+window.addEventListener('blur', () => {
+  if(!submitted && !document.getElementById('quiz-screen').classList.contains('hidden')){
+    alert("You switched tabs! Your quiz will be auto-submitted.");
+    submitQuiz(true);
+  }
+});
+
+// Optional: submit on page unload (closing tab/window)
+window.addEventListener('beforeunload', (e) => {
+  if(!submitted && !document.getElementById('quiz-screen').classList.contains('hidden')){
+    submitQuiz(true);
+    // Standard for preventing unload, though modern browsers often ignore custom messages.
+    e.preventDefault(); 
+    e.returnValue = ''; 
+  }
+});
+
+// Optional: enter key triggers next
+document.addEventListener('keydown', (e) => {
+  // Only trigger if an input field is focused or if it's generally on the quiz screen
+  const activeElement = document.activeElement;
+  const isInputFocused = activeElement && activeElement.tagName === 'INPUT' && activeElement.id === 'ans';
+
+  if (e.key === 'Enter' && !document.getElementById('quiz-screen').classList.contains('hidden')) {
+    e.preventDefault(); // Prevent default Enter behavior (e.g., submitting a form if one implicitly exists)
+    if (isInputFocused || currentPos >= CONFIG.QUESTIONS.length) { // Allow Enter from input or after last question
+      if (currentPos < shuffledIndices.length) {
+        nextQuestion();
+      } else {
+        submitQuiz();
+      }
+    }
+  }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Strict Logo Quiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f9f9f9;
+      /* Disable selection, dragging, and default image context actions globally */
+      user-select: none;          /* Standard */
+      -webkit-user-select: none;  /* Safari */
+      -moz-user-select: none;     /* Firefox */
+      -ms-user-select: none;      /* IE/Edge */
+      -webkit-user-drag: none;    /* Prevent dragging elements in Safari */
+    }
+    .hidden { display: none; }
+    .quiz-container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
+    }
+    .logo-container {
+      width: 200px; /* Fixed width for better control */
+      height: 200px; /* Fixed height */
+      margin: 10px auto;
+      display: block;
+      background-size: contain; /* Ensure image fits */
+      background-repeat: no-repeat; /* Don't tile */
+      background-position: center; /* Center the image */
+      border: 1px solid #eee; /* Optional: for visual debugging/placeholder */
+      pointer-events: none; /* Disables all mouse events on the div */
+      user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
+      -webkit-user-drag: none;
+    }
+    input, button { padding: 10px; margin: 10px 0; width: 100%; box-sizing: border-box;}
+    input {
+        outline: none;
+        user-select: auto; /* Re-enable selection for typing in inputs */
+        -webkit-user-select: auto;
+        -moz-user-select: auto;
+        -ms-user-select: auto;
+    }
+    button { cursor: pointer; background: #007BFF; color: white; border: none; border-radius: 6px; }
+    button:hover { background: #0056b3; }
+    .login, .result { text-align: center; }
+    table { border-collapse: collapse; }
+    table th, table td { padding: 8px; text-align: left; }
+    #admin-buttons {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+    }
+    #admin-buttons button {
+        width: auto; /* Adjust button width within flex container */
+        flex-grow: 1;
+    }
+    #timer {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #d9534f; /* Red color for timer */
+        margin-bottom: 10px;
+        text-align: center;
+        display: block; /* Ensure it takes its own line */
+    }
+    #rules-screen ul {
+        list-style-type: disc;
+        margin-left: 20px;
+        text-align: left;
+    }
+    #rules-screen li {
+        margin-bottom: 5px;
+    }
+    .table-container { /* Renamed for general table use */
+      max-height: 400px; /* Limit height for scrollability */
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      margin-bottom: 15px;
+    }
+    #result-table { /* Target specific table */
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #result-table th, #result-table td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    #result-table th {
+      background-color: #f2f2f2;
+    }
+  </style>
+</head>
+<body
+  oncopy="return false;"
+  oncut="return false;"
+  onpaste="return false;"
+  ondragstart="return false;"
+  ondrop="return false;"
+>
+<div class="quiz-container">
+
+  <!-- Rules Screen (Initial View) -->
+  <div id="rules-screen">
+    <h2>Welcome to the Strict Logo Quiz!</h2>
+    <p>Please read the following rules and restrictions carefully before proceeding:</p>
+    <ul>
+      <li><strong>Time Limit:</strong> You will have exactly 60 minutes (1 hour) to complete the quiz once you log in.</li>
+      <li><strong>One Attempt Only:</strong> Each participant is allowed only ONE attempt, tracked by your Roll Number or Phone Number.</li>
+      <li><strong>Randomized Questions:</strong> Questions will be presented in a random order for each participant.</li>
+      <li><strong>One Question at a Time:</strong> Only one logo will be displayed at a time.</li>
+      <li><strong>Strict Anti-Cheat Measures:</strong>
+        <ul>
+          <li>Copy, Paste, Cut, Drag & Drop are disabled.</li>
+          <li>Right-click functionality is disabled.</li>
+          <li>Developer tools (F12) and Print Screen (PrntScrn) are blocked.</li>
+          <li>Attempts to use screen-scraping tools like Google Lens/Gemini AI are heavily deterred by how images are displayed.</li>
+        </ul>
+      </li>
+      <li><strong>Auto-Submission:</strong> If you close the tab, switch to another tab, or the time runs out, your quiz will automatically submit with your current answers.</li>
+      <li><strong>Scoring:</strong> Answers are checked with a strict tolerance:
+        <ul>
+          <li>Case (upper/lower) is ignored.</li>
+          <li>Extra spaces are ignored.</li>
+          <li>Answers must match the correct logo name by at least <strong>95% similarity</strong> (Levenshtein distance based).</li>
+        </ul>
+      </li>
+      <li><strong>Next Level Qualification:</strong> The top 20 participants with the highest scores will be approved for the second level quiz. Results are accessible only by the quiz administrator.</li>
+    </ul>
+    <div id="rules-buttons">
+      <button onclick="showLogin()">I Agree & Proceed to Login</button>
+      <button onclick="showLevel2Login()">Go to Level 2</button> <!-- New Level 2 button -->
+      <button onclick="showAdminLogin()">Admin Login</button> <!-- Admin login from rules page -->
+    </div>
+  </div>
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="hidden">
+    <h2>Login to Start Quiz</h2>
+    <input type="text" id="roll" placeholder="Roll Number" required>
+    <input type="text" id="section" placeholder="Section" required>
+    <input type="text" id="name" placeholder="Full Name" required>
+    <input type="text" id="phone" placeholder="Phone Number" required>
+    <button onclick="startQuiz()">Start Quiz</button>
+    <button onclick="backToRules()">Back to Rules</button>
+  </div>
+
+  <!-- Quiz Screen -->
+  <div id="quiz-screen" class="hidden">
+    <h2>Logo Quiz</h2>
+    <span id="timer"></span> <!-- Timer display -->
+    <div id="question"></div>
+    <button id="next-button" onclick="nextQuestion()">Next</button>
+    <button id="submit-button" onclick="submitQuiz()" class="hidden">Submit</button>
+  </div>
+
+  <!-- Submitted Screen -->
+  <div id="submitted-screen" class="hidden">
+    <h2>Quiz Submitted</h2>
+    <p>Your responses have been recorded.</p>
+    <button onclick="backToRules()">Return to Main Page</button>
+  </div>
+
+  <!-- Admin Login Screen -->
+  <div id="admin-login" class="hidden">
+    <h2>Enter Password to View Results</h2>
+    <input type="password" id="admin-pass" placeholder="Password">
+    <button onclick="checkAdmin()">Login</button>
+    <button onclick="backToRules()">Back to Rules</button>
+  </div>
+
+  <!-- Level 2 Login Screen -->
+  <div id="level2-login" class="hidden">
+    <h2>Login for Level 2</h2>
+    <input type="password" id="level2-pass" placeholder="Level 2 Password">
+    <button onclick="checkLevel2Login()">Proceed to Level 2</button>
+    <button onclick="backToRules()">Back to Rules</button>
+  </div>
+
+  <!-- Admin Results Screen (Password Protected) -->
+  <div id="result-screen" class="hidden">
+    <h2>Admin Results - All Participants</h2>
+    <div class="table-container">
+      <table border="1" width="100%" id="result-table">
+        <thead>
+          <tr><th>Roll</th><th>Name</th><th>Section</th><th>Phone</th><th>Score</th></tr>
+        </thead>
+        <tbody>
+          <!-- Admin results will be inserted here -->
+        </tbody>
+      </table>
+    </div>
+    <div id="admin-buttons">
+        <button onclick="clearAllResults()">Clear All Results</button>
+        <button onclick="backToRules()">Back to Rules</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Config
+const CONFIG = {
+  QUESTIONS: [
+    {img:"adobe.png", answer:"adobe"},
+    {img:"amazon.png", answer:"amazon"},
+    {img:"andhrabank.png", answer:"andhra bank"},
+    {img:"asain paints.png", answer:"asian paints"},
+    {img:"audi.png", answer:"audi"},
+    {img:"britania.png", answer:"britannia"},
+    {img:"Bsnl.png", answer:"bsnl"},
+    {img:"dabur.png", answer:"dabur"},
+    {img:"dominos.png", answer:"dominos"},
+    {img:"emblem.png", answer:"emblem"},
+    {img:"Ferrari.png", answer:"ferrari"},
+    {img:"government.png", answer:"government"},
+    {img:"honda.png", answer:"honda"},
+    {img:"hundai.png", answer:"hyundai"},
+    {img:"indian army.png", answer:"indian army"},
+    {img:"indian flag.png", answer:"indian flag"},
+    {img:"indian post bank.png", answer:"indian post bank"},
+    {img:"irtc.png", answer:"irctc"},
+    {img:"Isro.png", answer:"isro"},
+    {img:"jaguar.png", answer:"jaguar"},
+    {img:"jio.png", answer:"jio"},
+    {img:"kfc.png", answer:"kfc"},
+    {img:"kodak.png", answer:"kodak"},
+    {img:"telegram.png", answer:"telegram"},
+    {img:"microsoft.png", answer:"microsoft"},
+    {img:"nestle.png", answer:"nestle"},
+    {img:"nokia.png", answer:"nokia"},
+    {img:"nvidia.png", answer:"nvidia"},
+    {img:"pepsi.png", answer:"pepsi"},
+    {img:"python.png", answer:"python"},
+    {img:"reddit.png", answer:"reddit"},
+    {img:"reliance.png", answer:"reliance"},
+    {img:"Samsonite.png", answer:"samsonite"},
+    {img:"sbi.png", answer:"sbi"},
+    {img:"tata.png", answer:"tata"},
+    {img:"Toyota.png", answer:"toyota"},
+    {img:"twitter.png", answer:"twitter"},
+    {img:"vodophone.png", answer:"vodafone"},
+    {img:"Wipro.png", answer:"wipro"},
+    {img:"Yahoo.png", answer:"yahoo"}
+  ],
+  ADMIN_PASS: "Vivek1234@",
+  LEVEL2_PASS: "ReadyToGo", // Password for Level 2
+  SCORE_SIMILARITY_THRESHOLD: 95, // % - Exact 95% match
+  QUIZ_DURATION_MINUTES: 60 // Quiz duration in minutes
+};
+
+let participant = {};
+let currentQ = 0;
+let shuffled = [];
+let answers = [];
+let submitted = false;
+let results = JSON.parse(localStorage.getItem("quizResults") || "[]");
+let timerInterval; // To store the timer interval ID
+let quizStartTime; // To store the start time of the quiz
+
+// Utility to shuffle an array
+function shuffle(arr){
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]]; // ES6 swap
+  }
+  return arr;
+}
+
+// Levenshtein distance calculation
+function levenshtein(a,b){
+  a = String(a); // Ensure string type
+  b = String(b); // Ensure string type
+  const dp=Array(a.length+1).fill(null).map(()=>Array(b.length+1).fill(0));
+  for(let i=0;i<=a.length;i++) dp[i][0]=i;
+  for(let j=0;j<=b.length;j++) dp[0][j]=j;
+  for(let i=1;i<=a.length;i++){
+    for(let j=1;j<=b.length;j++){
+      dp[i][j] = a[i-1]==b[j-1]?dp[i-1][j-1]:
+      1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+// Normalize answers for comparison (lowercase, remove all spaces, trim)
+function normalize(str){
+  if (typeof str !== 'string') return ''; // Handle non-string inputs
+  return str.toLowerCase().replace(/\s+/g, "").trim();
+}
+
+// Screen navigation functions
+function showScreen(screenId) {
+    document.querySelectorAll('.quiz-container > div').forEach(screen => {
+        screen.classList.add('hidden');
+    });
+    document.getElementById(screenId).classList.remove('hidden');
+}
+
+function backToRules() {
+    showScreen('rules-screen');
+    // Clear any active quiz session data if returning from quiz screen (prevents re-entry)
+    if (!submitted && !document.getElementById('quiz-screen').classList.contains('hidden')) {
+        clearInterval(timerInterval);
+        sessionStorage.removeItem('quizStartTime');
+        // We'll consider backing out of the quiz as an auto-submission
+        // This prevents trying to restart with same credentials if they just hit 'back to rules'
+        // without explicitly submitting.
+        submitQuiz(); // Auto-submit what they have
+        alert("Quiz session ended and submitted because you left the quiz screen. Your progress has been saved.");
+    }
+}
+
+
+function showLogin() {
+    showScreen('login-screen');
+}
+
+function showAdminLogin(){
+    showScreen('admin-login');
+    document.getElementById('admin-pass').value = ''; // Clear password field
+}
+
+// New function to show Level 2 Login
+function showLevel2Login() {
+    showScreen('level2-login');
+    document.getElementById('level2-pass').value = ''; // Clear password field
+}
+
+// New function to check Level 2 password and redirect
+function checkLevel2Login() {
+    const pass = document.getElementById('level2-pass').value;
+    if (pass === CONFIG.LEVEL2_PASS) {
+        window.location.href = 'level 2.html'; // Redirect to level2.html
+    } else {
+        alert('Incorrect password for Level 2.');
+    }
+}
+
+
+function startQuiz(){
+  participant = {
+    roll: document.getElementById("roll").value.trim(),
+    section: document.getElementById("section").value.trim(),
+    name: document.getElementById("name").value.trim(),
+    phone: document.getElementById("phone").value.trim()
+  };
+
+  if(!participant.roll || !participant.section || !participant.name || !participant.phone){
+    alert("Please fill in all fields to start the quiz.");
+    return;
+  }
+
+  // Prevent multiple attempts based on roll OR phone number
+  if(results.some(r => r.roll === participant.roll || r.phone === participant.phone)){
+    alert("You have already attempted this quiz with this Roll Number or Phone Number!");
+    return;
+  }
+
+  showScreen('quiz-screen');
+
+  submitted = false; // Reset submitted flag for a new quiz attempt
+  currentQ = 0;
+  answers = [];
+  shuffled = shuffle([...CONFIG.QUESTIONS]); // Shuffle questions for each participant
+  document.getElementById('next-button').classList.remove('hidden'); // Ensure next button is visible for new quiz
+  document.getElementById('submit-button').classList.add('hidden'); // Hide submit button initially
+  
+  startTimer(); // Start the 60-minute timer
+  loadQuestion();
+}
+
+function startTimer() {
+    const storedStartTime = sessionStorage.getItem('quizStartTime');
+    if (storedStartTime) {
+        quizStartTime = parseInt(storedStartTime);
+    } else {
+        quizStartTime = Date.now();
+        sessionStorage.setItem('quizStartTime', quizStartTime);
+    }
+
+    const endTime = quizStartTime + CONFIG.QUIZ_DURATION_MINUTES * 60 * 1000;
+    const timerElement = document.getElementById('timer');
+
+    clearInterval(timerInterval); // Clear any existing timer
+
+    timerInterval = setInterval(() => {
+        const now = Date.now();
+        const timeLeft = endTime - now;
+
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            timerElement.textContent = "Time's Up!";
+            alert("Time's up! Your quiz has been automatically submitted.");
+            submitQuiz();
+            return;
+        }
+
+        const minutes = Math.floor((timeLeft / (1000 * 60)) % 60);
+        const seconds = Math.floor((timeLeft / 1000) % 60);
+
+        timerElement.textContent = `Time Left: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }, 1000);
+}
+
+
+function loadQuestion(){
+  if(currentQ >= shuffled.length){
+    // If all questions are loaded, show submit button and hide next
+    document.getElementById('next-button').classList.add('hidden');
+    document.getElementById('submit-button').classList.remove('hidden');
+    document.getElementById('question').innerHTML = `
+      <p>You've answered all questions. Please click Submit to finish.</p>
+    `;
+    return;
+  }
+
+  const q = shuffled[currentQ];
+  document.getElementById('question').innerHTML = `
+    <p>Q${currentQ+1} of ${shuffled.length}: What is this logo?</p>
+    <div class="logo-container" style="background-image: url('${q.img}');"></div>
+    <input type="text" id="ans" placeholder="Enter your answer" onkeypress="handleAnswerEnter(event)">
+  `;
+  document.getElementById('ans').focus(); // Focus on the input field
+}
+
+function handleAnswerEnter(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault(); // Prevent default form submission
+    if (currentQ < shuffled.length - 1) {
+      nextQuestion();
+    } else {
+      submitQuiz();
+    }
+  }
+}
+
+function nextQuestion(){
+  const ansInput = document.getElementById("ans");
+  answers[currentQ] = ansInput ? ansInput.value : "";
+
+  currentQ++;
+  if(currentQ < shuffled.length){
+    loadQuestion();
+  } else {
+    // If it's the last question and 'Next' is clicked, it means all questions are answered,
+    // so we should proceed to submit.
+    submitQuiz();
+  }
+}
+
+function submitQuiz(){
+  if(submitted) return; // Prevent multiple submissions
+  submitted = true;
+  clearInterval(timerInterval);
+  sessionStorage.removeItem('quizStartTime'); // Clear session storage for this quiz attempt
+
+  // Capture the answer for the current question before submitting
+  const ansInput = document.getElementById("ans");
+  if (ansInput) {
+      answers[currentQ] = ansInput.value;
+  }
+
+  let score = 0;
+  shuffled.forEach((q, i) => {
+    const givenNormalized = normalize(answers[i] || "");
+    const correctNormalized = normalize(q.answer);
+
+    if (givenNormalized.length === 0 && correctNormalized.length > 0) {
+        return; // No answer given for a question that has one, don't score
+    }
+    // If both are empty, it's ambiguous if it should score.
+    // For a logo quiz, every question *should* have a correct answer.
+    // So, an empty given answer against an empty correct answer is unlikely,
+    // but if it occurs, we'll give a point for now.
+    if (givenNormalized.length === 0 && correctNormalized.length === 0) {
+        score++;
+        return;
+    }
+
+    const dist = levenshtein(givenNormalized, correctNormalized);
+    // Use the length of the *correct* answer for similarity calculation,
+    // as the user's answer might be shorter or longer due to errors.
+    const maxLength = correctNormalized.length; 
+
+    let similarity = 0;
+    if (maxLength > 0) {
+        similarity = (1 - (dist / maxLength)) * 100;
+    } else if (givenNormalized.length === 0) { // If correct answer is empty, and user also gave empty
+        similarity = 100;
+    }
+    
+    if (similarity >= CONFIG.SCORE_SIMILARITY_THRESHOLD) {
+      score++;
+    }
+  });
+
+  results.push({...participant, score: score, totalQuestions: CONFIG.QUESTIONS.length, timestamp: Date.now()});
+  localStorage.setItem("quizResults", JSON.stringify(results));
+
+  showScreen('submitted-screen');
+}
+
+
+function checkAdmin(){
+  if(document.getElementById('admin-pass').value === CONFIG.ADMIN_PASS){
+    showScreen('result-screen');
+    renderResults();
+  } else {
+    alert("Wrong Password!");
+  }
+}
+
+function renderResults(){
+  const tableBody = document.getElementById("result-table").querySelector('tbody');
+  tableBody.innerHTML = ''; // Clear previous results
+
+  // Sort results by score (descending) and then by timestamp (ascending) for ties
+  const sortedResults = [...results].sort((a, b) => {
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    return (a.timestamp || 0) - (b.timestamp || 0); // Earlier submission wins tie, handle undefined timestamps
+  });
+
+  if (sortedResults.length === 0) {
+      const row = tableBody.insertRow();
+      const cell = row.insertCell(0);
+      cell.colSpan = 5; // Adjust colspan if you have more columns
+      cell.textContent = "No participant results available yet.";
+      cell.style.textAlign = "center";
+      return;
+  }
+
+  sortedResults.forEach(r => {
+    const row = tableBody.insertRow();
+    row.insertCell().innerText = r.roll;
+    row.insertCell().innerText = r.name;
+    row.insertCell().innerText = r.section;
+    row.insertCell().innerText = r.phone;
+    // Display score out of total questions dynamically
+    row.insertCell().innerText = r.score + "/" + (r.totalQuestions || CONFIG.QUESTIONS.length);
+  });
+}
+
+// Admin Function: Clear All Results
+function clearAllResults() {
+    if (confirm("Are you sure you want to CLEAR ALL QUIZ RESULTS? This action cannot be undone.")) {
+        localStorage.removeItem("quizResults");
+        results = []; // Reset the in-memory array
+        renderResults(); // Re-render the table, which will now be empty
+        alert("All quiz results have been cleared.");
+    }
+}
+
+
+// Anti-cheat measures (global event listeners)
+document.onkeydown = (e) => {
+    // Prevent Ctrl combinations, F12, PrintScreen, etc.
+    if (e.ctrlKey || e.key === "F12" || e.key === "PrintScreen" || e.keyCode === 44 || e.metaKey) {
+        e.preventDefault();
+        // Optionally, show a message, but prevent any action
+        // alert("Developer tools, print screen, and other forbidden actions are disabled.");
+        return false;
+    }
+};
+document.oncontextmenu = (e) => {
+    e.preventDefault(); // Prevent right-click context menu
+    // alert("Right-click is disabled."); // Optional alert
+    return false;
+};
+
+// Auto-submit on tab blur/visibility change
+window.addEventListener('blur', () => {
+    if(!submitted && !document.getElementById('quiz-screen').classList.contains('hidden')) {
+        console.log("Tab blurred - auto-submitting quiz.");
+        submitQuiz();
+    }
+});
+document.addEventListener('visibilitychange', () => {
+    if(document.hidden && !submitted && !document.getElementById('quiz-screen').classList.contains('hidden')) {
+        console.log("Tab visibility changed to hidden - auto-submitting quiz.");
+        submitQuiz();
+    }
+});
+
+
+// Initial state: show rules screen on load
+document.addEventListener('DOMContentLoaded', () => {
+    showScreen('rules-screen');
+    // If a quiz was active and session storage has a start time, try to resume the timer (if they refresh)
+    // This logic is mostly for robustness; in a strict quiz, a refresh might also trigger an auto-submit.
+    if (sessionStorage.getItem('quizStartTime') && !document.getElementById('quiz-screen').classList.contains('hidden')) {
+        startTimer();
+    } else {
+        // If they navigate away or refresh outside the quiz, clear any lingering session info.
+        sessionStorage.removeItem('quizStartTime');
+    }
+});
+</script>
+</body>
+</html>
